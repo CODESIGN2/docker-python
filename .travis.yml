@@ -17,5 +17,4 @@ script:
 
 deploy:
   provider: script
-  script:
-- docker push cd2team/docker-python:$PYTHON_VERSION
+  script: "docker push cd2team/docker-python:$PYTHON_VERSION"
