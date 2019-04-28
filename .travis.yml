@@ -1,0 +1,21 @@
+sudo: required
+
+services:
+  - docker
+
+env:
+  - PYTHON_VERSION=2.7
+  - PYTHON_VERSION=3.5
+  - PYTHON_VERSION=3.6
+  - PYTHON_VERSION=3.7
+
+before_install:
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+
+script:
+  - docker build -t cd2team/docker-python:$PYTHON_VERSION ./ --build-arg PYTHON_VERSION=$PYTHON_VERSION
+
+deploy:
+  provider: script
+  script:
+- docker push cd2team/docker-python:$PYTHON_VERSION
