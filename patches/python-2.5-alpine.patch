@@ -1,0 +1,50 @@
+diff -r -u orig/Modules/posixmodule.c neu/Modules/posixmodule.c
+--- orig/Modules/posixmodule.c	2019-05-06 14:00:44.945777109 +0100
++++ neu/Modules/posixmodule.c	2019-05-06 14:01:35.418148962 +0100
+@@ -5971,7 +5971,7 @@
+ Close a file descriptor (for low level IO).");
+ 
+ static PyObject *
+-posix_close(PyObject *self, PyObject *args)
++posix_closex(PyObject *self, PyObject *args)
+ {
+ 	int fd, res;
+ 	if (!PyArg_ParseTuple(args, "i:close", &fd))
+@@ -8263,7 +8263,7 @@
+ 	{"tcsetpgrp",	posix_tcsetpgrp, METH_VARARGS, posix_tcsetpgrp__doc__},
+ #endif /* HAVE_TCSETPGRP */
+ 	{"open",	posix_open, METH_VARARGS, posix_open__doc__},
+-	{"close",	posix_close, METH_VARARGS, posix_close__doc__},
++	{"close",	posix_closex, METH_VARARGS, posix_close__doc__},
+ 	{"dup",		posix_dup, METH_VARARGS, posix_dup__doc__},
+ 	{"dup2",	posix_dup2, METH_VARARGS, posix_dup2__doc__},
+ 	{"lseek",	posix_lseek, METH_VARARGS, posix_lseek__doc__},
+diff -r -u orig/setup.py neu/setup.py
+--- orig/setup.py	2008-10-16 19:58:19.000000000 +0100
++++ neu/setup.py	2019-05-06 14:09:06.861476358 +0100
+@@ -1011,20 +1011,15 @@
+         #
+         # More information on Expat can be found at www.libexpat.org.
+         #
+-        expatinc = os.path.join(os.getcwd(), srcdir, 'Modules', 'expat')
+-        define_macros = [
+-            ('HAVE_EXPAT_CONFIG_H', '1'),
+-        ]
++        # Use system expat
++        expatinc = '/usr/include'
++        define_macros = []
+ 
+         exts.append(Extension('pyexpat',
+                               define_macros = define_macros,
+                               include_dirs = [expatinc],
+-                              sources = ['pyexpat.c',
+-                                         'expat/xmlparse.c',
+-                                         'expat/xmlrole.c',
+-                                         'expat/xmltok.c',
+-                                         ],
+-                              ))
++                              libraries = ['expat'],
++                              sources = ['pyexpat.c',],))
+ 
+         # Fredrik Lundh's cElementTree module.  Note that this also
+         # uses expat (via the CAPI hook in pyexpat).

@@ -12,7 +12,7 @@ ENV LANG C.UTF-8
 # the other runtime dependencies for Python are installed later
 RUN apk add --no-cache ca-certificates
 
-ENV PYTHON_VERSION 2.6.9
+ENV PYTHON_VERSION 2.5.4
 
 # if this is called "PIP_VERSION", pip explodes with "ValueError: invalid truth value '<VERSION>'"
 ENV PYTHON_PIP_VERSION 8.1.2
@@ -28,22 +28,11 @@ RUN set -ex \
         openssl \
         gnupg \
         tar \
-        xz \
+        bzip2 \
     \
-    && wget -O python.tar.xz "https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz" \
-    && wget -O python.tar.xz.asc "https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz.asc" \
-    && export GNUPGHOME="$(mktemp -d)" \
-    && for server in $(shuf -e ha.pool.sks-keyservers.net \
-                            hkp://p80.pool.sks-keyservers.net:80 \
-                            keyserver.ubuntu.com \
-                            hkp://keyserver.ubuntu.com:80 \
-                            pgp.mit.edu) ; do \
-    gpg --keyserver "$server" --recv-keys "$PYTHON_GPG_KEY" && break || : ; \
-    done \
-    && gpg --batch --verify python.tar.xz.asc python.tar.xz \
-    && rm -r "$GNUPGHOME" python.tar.xz.asc \
-    && tar -xJC /usr/src/python --strip-components=1 -f python.tar.xz \
-    && rm python.tar.xz
+    && wget -O python.tar.bz2 "https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.bz2" \
+    && tar -xjC /usr/src/python --strip-components=1 -f python.tar.bz2 \
+    && rm python.tar.bz2
 
 RUN apk add --no-cache --virtual .build-deps  \
         gcc \
@@ -73,7 +62,7 @@ RUN cd /usr/src/python \
     && mv /tmp/patches/*.patch ./ \
     && ls -la \
     && for patchfile in *.patch ; do \
-    patch -p1 < ${patchfile}; \
+    patch -p1 -u -i ${patchfile}; \
     done && \
     ./configure --prefix=/usr \
     --enable-shared \
@@ -82,24 +71,13 @@ RUN cd /usr/src/python \
     --enable-unicode=ucs4 \
     && make -j$(getconf _NPROCESSORS_ONLN) \
     && make install \
-    && ln -s /usr/bin/python2.6 /usr/bin/python2 \
-        && wget -O /tmp/get-pip.py 'https://bootstrap.pypa.io/2.6/get-pip.py' \
-        && python2 /tmp/get-pip.py "pip==$PYTHON_PIP_VERSION" \
-        && rm /tmp/get-pip.py \
-# we use "--force-reinstall" for the case where the version of pip we're trying to install is the same as the version bundled with Python
-# ("Requirement already up-to-date: pip==8.1.2 in /usr/local/lib/python3.6/site-packages")
-# https://github.com/docker-library/python/pull/143#issuecomment-241032683
-    && pip install --no-cache-dir --upgrade --force-reinstall "pip==$PYTHON_PIP_VERSION" \
-# then we use "pip list" to ensure we don't have more than one pip version installed
-# https://github.com/docker-library/python/pull/100
-    && [ "$(pip list |tac|tac| awk -F '[ ()]+' '$1 == "pip" { print $2; exit }')" = "$PYTHON_PIP_VERSION" ] \
-    \
-    && find /usr/local -depth \
-        \( \
-            \( -type d -a -name test -o -name tests \) \
-            -o \
-            \( -type f -a -name '*.pyc' -o -name '*.pyo' \) \
-        \) -exec rm -rf '{}' + \
+    && ln -s /usr/bin/python2.5 /usr/bin/python2 \
+        && wget -O /tmp/pip.zip https://github.com/pypa/pip/archive/1.0.2.zip \
+        && wget -O /tmp/setuptools.zip https://github.com/pypa/setuptools/archive/1.4.2.zip \
+        && cd /tmp && unzip pip.zip && unzip setuptools.zip \
+        && cd /tmp/setuptools-1.4.2 && python setup.py install \
+        && easy_install /tmp/pip-1.0.2 \
+        && rm -rf /tmp/* \
     && runDeps="$( \
         scanelf --needed --nobanner --recursive /usr/local \
             | awk '{ gsub(/,/, "\nso:", $2); print "so:" $2 }' \
@@ -115,8 +93,7 @@ RUN cd /usr/src/python \
 RUN apk update \
   && apk add --no-cache git openssh-client
 
-# Install Pipenv
-RUN pip install pipenv==3.0.0
+# Pipenv did not exist at this point
 
 # Install testing utilities
 RUN pip install pytest unittest2 nose2 hypothesis tox mock
